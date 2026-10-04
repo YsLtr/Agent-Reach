@@ -1,5 +1,9 @@
 # 视频/播客
 
+> **本机裁剪说明（修改自上游 v1.5.0）**：本机**未安装 `yt-dlp`**，且 YouTube 视频/字幕
+> 已被 pi-web-access 的 `fetch_content` 覆盖 —— **下面「YouTube (yt-dlp)」整节不要执行**，
+> 遇到 YouTube 链接一律改用 `fetch_content`。本文件真正适用的是 **B站** 与 **小宇宙播客** 两节。
+
 YouTube、B站、小宇宙播客的字幕和转录。
 
 ## YouTube (yt-dlp)

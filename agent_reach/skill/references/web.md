@@ -1,5 +1,10 @@
 # 网页阅读
 
+> **本机裁剪说明（修改自上游 v1.5.0）**：通用网页阅读已由 pi-web-access 的 `fetch_content`
+> 覆盖（readability + SSRF 防护 + Turndown 清洗，质量高于 `curl r.jina.ai`），
+> **「通用网页 (Jina Reader)」与「Web Reader (MCP)」两节不要用**。本文件真正适用的是
+> **RSS (feedparser)** 一节。
+
 通用网页、RSS。
 
 ## 通用网页 (Jina Reader)
