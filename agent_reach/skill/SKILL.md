@@ -11,8 +11,8 @@ description: >
 
   本机已装（uv tool，~/.local/bin）：agent-reach、twitter、boss、opencli、mcporter。
   动手前先跑 `agent-reach doctor --json`。三个坑必读正文「本机实测状态」：
-  三个工具都从**自己的 fork** 安装（补丁在 fork 里，升级不再丢）。pi 启动会自动检测
-  fork 有没有新提交并提示；要更新用 `/forks-update`，查状态用 `/forks-status`。
+  三个工具都从**自己的 fork** 安装（补丁在 fork 里，不会丢）。**不做自动更新、也不做版本检测**：
+  不要主动比对 fork 与本地版本、不要提示升级，除非用户明确要求重装。
   BOSS 需专用 Chrome(127.0.0.1:9222) 且已扫码登录。
 
   【分工，优先遵守】通用网页搜索用 pi-web-access 的 web_search；任意网页链接、PDF、
@@ -52,7 +52,7 @@ metadata:
 | BOSS直聘 | ⚠️ 需登录 | 必须先起专用 Chrome 并在其中扫码登录，见下 |
 | Reddit / Facebook / Instagram / LinkedIn / 雪球 / 小宇宙 | ❌ | 未装后端或未配登录态 |
 
-### 补丁怎么维护（fork + 自动检测）
+### 补丁怎么维护（fork）
 
 三个补丁工具都安装自你自己的 fork，而不是上游：
 
@@ -62,18 +62,14 @@ metadata:
 | twitter-cli | `YsLtr/twitter-cli` | ClientTransaction 带 cookie（上游 #88） |
 | agent-reach | `YsLtr/Agent-Reach` | 精简 SKILL.md |
 
-每个 fork 里有一个定时工作流 `Sync from upstream`（每日）把上游 merge 进自己的 main。
-pi 启动时扩展 `fork-updates` 会比对「fork 的 main」与「本机已装的提交」，有差异就提示。
+**没有自动更新，也没有版本检测。** 不要主动比对 fork 与本地版本、不要例行检查更新、不要提示
+用户升级 —— 这些工具是「装上就不再动」的，补丁已经在 fork 里，不会因为重装而丢。
 
-- `/forks-status` —— 查看三个工具各自「已装 vs fork」的提交与同步状态
-- `/forks-update` —— 合并上游 → 推送 fork → 重新构建安装（`~/.local/share/pi-forks/update.sh`）
+只有当用户**明确要求**更新或重装某个工具时，才按下面各小节里的命令做。三个 fork 的克隆放在
+`~/.local/share/pi-forks/`，只在重建 opencli 时当原料用。
 
-会看到两类提示：
-1. **fork 有更新** → 跑 `/forks-update` 即可，补丁会一起带上。
-2. **同步未生效（fork 落后上游）** → 说明 fork 里的定时工作流没跑或合并冲突了；
-   `/forks-update` 能直接追上，顺便检查 fork 的 Actions 页。
-
-克隆与脚本在 `~/.local/share/pi-forks/`（三个克隆 + `update.sh` + `installed.json`）。
+每个 fork 里另有一个定时工作流 `Sync from upstream`（每日）把上游 merge 进自己的 main，纯粹是
+为了让补丁不烂掉（一旦上游动了补丁所在的代码，冲突会立刻暴露）。它只在 GitHub 侧跑，与本机无关。
 
 ### ⚠️ Twitter 的本地补丁（已由自己的 fork 承载）
 
@@ -119,11 +115,15 @@ Number(style.opacity) > 0.01 && style.pointerEvents !== 'none';
 补丁已提交到 `YsLtr/OpenCLI` 的 main。注意**不能**直接 `npm i -g git+<fork>`：opencli 是 TypeScript
 项目，安装要跑 `prepare` → `tsc --build`，而 npm 给 git 依赖做“准备”时不会可靠提供 devDependencies。
 实测 `tsc` 缺失会让安装失败，且失败前已把旧包删掉；在 prepare 里补装依赖又会让 npm 递归调用 prepare。
-所以走本地克隆构建 → 打 tarball → 装 tarball（tarball 安装不再跑 prepare），这条流程封装在
-`~/.local/share/pi-forks/update.sh`。
 
-**平时不需要手动跑它**：pi 启动时扩展 `fork-updates` 会自动比对 fork 与已安装版本并提示，
-确认后 `/forks-update` 一键完成（合并上游 → 推送 fork → 重新构建安装）。
+所以重装走「已构建的克隆 → 打 tarball → 装 tarball」（tarball 安装不再跑 prepare）。
+**仅在用户明确要求时执行**：
+
+```bash
+cd ~/.local/share/pi-forks/OpenCLI
+npm run build && npm pack --pack-destination ../artifacts
+npm install -g ../artifacts/jackwener-opencli-*.tgz --no-audit --no-fund
+```
 
 实测效果：默认搜索、`--sort latest`、`--note-type video` 全部返回真实笔记；`--sort latest` 返回的是
 当天日期的笔记，而默认搜索返回数月前的，**证明筛选确实被应用**，不是被跳过。
@@ -287,4 +287,4 @@ https://raw.githubusercontent.com/Panniantong/agent-reach/main/docs/install.md
 > 本机的 agent-reach 就是从那个 fork 安装的，所以 `agent-reach install --system` 写出的**就是这一版**，
 > 不会再被上游原文覆盖；`dev.md`/`search.md` 已在 fork 中删除、不会恢复，`SKILL_en.md` 也已删除，
 > 使所有 locale 都回退到本文件。
-> 改完本文件要同步进 fork 的 `agent_reach/skill/SKILL.md` 并 push，然后 `/forks-update` 重装。
+> 改完本文件要同步进 fork 的 `agent_reach/skill/SKILL.md` 并 push（本机这份就是从那个 fork 装出来的）。
