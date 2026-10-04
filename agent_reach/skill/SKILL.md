@@ -11,7 +11,7 @@ description: >
 
   本机已装（uv tool，~/.local/bin）：agent-reach、twitter、boss、opencli、mcporter。
   动手前先跑 `agent-reach doctor --json`。三个坑必读正文「本机实测状态」：
-  Twitter 与 opencli 小红书各有本地补丁（升级后需重放，见正文）；
+  三个工具都改成从**自己的 fork** 安装（补丁在 fork 里，升级不再丢，见正文）；
   BOSS 需专用 Chrome(127.0.0.1:9222) 且已扫码登录。
 
   【分工，优先遵守】通用网页搜索用 pi-web-access 的 web_search；任意网页链接、PDF、
@@ -51,7 +51,7 @@ metadata:
 | BOSS直聘 | ⚠️ 需登录 | 必须先起专用 Chrome 并在其中扫码登录，见下 |
 | Reddit / Facebook / Instagram / LinkedIn / 雪球 / 小宇宙 | ❌ | 未装后端或未配登录态 |
 
-### ⚠️ Twitter 的本地补丁（升级后必须重放）
+### ⚠️ Twitter 的本地补丁（已由自己的 fork 承载）
 
 `twitter search` 依赖 `x-client-transaction-id` 头，而上游从**匿名**首页解析该标记，X 改版后匿名首页已无 `ondemand.s`，于是 search 恒 404（上游 issue #88，7 个 PR 均未合并）。
 实测：带 cookie 抓首页返回 304,748 字节且含该标记，匿名只有 17–35KB 且不含 —— **CT 初始化必须带 cookie**。
@@ -63,9 +63,11 @@ metadata:
 ct_headers["Cookie"] = self._cookie_string or "auth_token=%s; ct0=%s" % (self._auth_token, self._ct0)
 ```
 
-`uv tool install --force twitter-cli` / 升级会抹掉它；备份在同目录 `client.py.orig-backup`。
-打完补丁要删缓存 `~/.twitter-cli/transaction_cache.json`（1h TTL，坏缓存会继续报错）。
-### ⚠️ opencli 小红书的本地补丁（升级后必须重放）
+补丁已提交到 `YsLtr/twitter-cli` 的 main，安装源就是它，所以 `uv tool install --force` **不会再丢补丁**。
+凭据存在 `~/.agent-reach/config.yaml` 的 `twitter_auth_token`/`twitter_ct0`，但裸 `twitter` CLI 只读
+`TWITTER_AUTH_TOKEN`/`TWITTER_CT0` 环境变量 —— 跑之前先把这两个值导出到环境。
+换过凭据后删缓存 `~/.twitter-cli/transaction_cache.json`（1h TTL，坏缓存会继续报错）。
+### ⚠️ opencli 小红书的本地补丁（已由自己的 fork 承载）
 
 `opencli xiaohongshu search` 在小红书当前前端上会**每次必失败**，连不带任何筛选参数的普通搜索也失败：
 
@@ -90,10 +92,13 @@ if (element.closest('[data-hp-kind], [aria-hidden="true"]')) return false;
 Number(style.opacity) > 0.01 && style.pointerEvents !== 'none';
 ```
 
-用脚本重放（幂等）：
+补丁已提交到 `YsLtr/OpenCLI` 的 main。注意**不能**直接 `npm i -g git+<fork>`：opencli 是 TypeScript
+项目，安装要跑 `prepare` → `tsc --build`，而 npm 给 git 依赖做“准备”时不会可靠提供 devDependencies。
+实测 `tsc` 缺失会让安装失败，且失败前已把旧包删掉；在 prepare 里补装依赖又会让 npm 递归调用 prepare。
+所以走本地克隆构建 → 打 tarball → 装 tarball（tarball 安装不再跑 prepare）：
 
 ```bash
-bash ~/.pi/agent/local-patches/opencli-xhs-filter/apply.sh
+bash ~/.local/share/pi-forks/update.sh
 ```
 
 实测效果：默认搜索、`--sort latest`、`--note-type video` 全部返回真实笔记；`--sort latest` 返回的是
@@ -254,6 +259,8 @@ https://raw.githubusercontent.com/Panniantong/agent-reach/main/docs/install.md
 
 用户只需提供 cookies，其他配置由 agent 完成。
 
-> ⚠️ **本文件是本地裁剪版**（上游 v1.5.0 + 本机实测修正）。`agent-reach install --system`
-> 会用上游原文**覆盖**它并恢复 `dev.md`/`search.md`。被覆盖后用
-> `bash ~/.pi/agent/local-patches/agent-reach-skill/apply.sh` 重新应用。
+> ⚠️ **本文件是本地裁剪版**（上游 v1.5.0 + 本机实测修正），已提交到 `YsLtr/Agent-Reach` 的 main。
+> 本机的 agent-reach 就是从那个 fork 安装的，所以 `agent-reach install --system` 写出的**就是这一版**，
+> 不会再被上游原文覆盖；`dev.md`/`search.md` 已在 fork 中删除、不会恢复，`SKILL_en.md` 也已删除，
+> 使所有 locale 都回退到本文件。
+> 改完本文件要同步进 fork 的 `agent_reach/skill/SKILL.md`，再跑 `bash ~/.local/share/pi-forks/update.sh`。
